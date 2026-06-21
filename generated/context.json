@@ -1,0 +1,43 @@
+{
+    "inputs": [
+        {
+            "name": "username",
+            "id": "username",
+            "aria_label": null,
+            "locator": {
+                "primary": "name=username",
+                "confidence": 100
+            }
+        },
+        {
+            "name": "password",
+            "id": "password",
+            "aria_label": null,
+            "locator": {
+                "primary": "name=password",
+                "confidence": 100
+            }
+        }
+    ],
+    "buttons": [
+        {
+            "text": "Login",
+            "locator": {
+                "primary": "button[type='submit']",
+                "confidence": 100
+            }
+        }
+    ],
+    "links": [
+        {
+            "text": "",
+            "href": "https://github.com/tourdedave/the-internet"
+        },
+        {
+            "text": "Elemental Selenium",
+            "href": "http://elementalselenium.com/"
+        }
+    ],
+    "forms": [],
+    "tables": []
+}

@@ -1,0 +1,2 @@
+[    1936ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://298279967.log.optimizely.com/event?a=298279967&d=298279967&y=false&n=https%3A%2F%2Fthe-internet.herokuapp.com%2Flogin&u=oeu1782032947485r0.27405713437601786&wxhr=true&t=1782032947491&f=298349752,318188263:0
+[    2895ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://the-internet.herokuapp.com/login:0

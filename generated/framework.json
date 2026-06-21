@@ -1,0 +1,16 @@
+```json
+{
+  "tests": {
+    "file_path": "tests/search_google.robot",
+    "content": "***Settings***\nLibrary    SeleniumLibrary\nResource   ../resources/common_keywords.robot\nResource   ../pages/google_search_page.robot\n\n***Test Cases***\nSearch Google Test\n    [Tags]    GoogleSearch\n    User Opens Google\n    User Searches For ChatGPT\n    Search Results Appear\n"
+  },
+  "page_objects": {
+    "file_path": "pages/google_search_page.robot",
+    "content": "***Settings***\nLibrary    SeleniumLibrary\n\n***Variables***\n${GOOGLE_SEARCH_INPUT}\t\tid=APjFqb\n${GOOGLE_SEARCH_BUTTON}\t\tname=btnK\n\n***Keywords***\nEnter Search Term\n    [Arguments]    ${search_term}\n    Input Text    ${GOOGLE_SEARCH_INPUT}    ${search_term}\n\nClick Google Search Button\n    Click Element    ${GOOGLE_SEARCH_BUTTON}\n\nVerify Search Results Page\n    [Arguments]    ${search_term}\n    Wait Until Page Contains    ${search_term}\n    Location Should Contain    search?q=${search_term}\n"
+  },
+  "reusable_keywords": {
+    "file_path": "resources/common_keywords.robot",
+    "content": "***Settings***\nLibrary    SeleniumLibrary\n\n***Variables***\n${BROWSER}\t\tchrome\n${GOOGLE_URL}\t\thttps://www.google.com\n\n***Keywords***\nUser Opens Google\n    Open Browser    ${GOOGLE_URL}    ${BROWSER}\n    Maximize Browser Window\n    Set Selenium Implicit Wait    5s\n\nUser Searches For ChatGPT\n    [Arguments]    ${search_term}=ChatGPT\n    Enter Search Term    ${search_term}\n    Click Google Search Button\n\nSearch Results Appear\n    [Arguments]    ${search_term}=ChatGPT\n    Verify Search Results Page    ${search_term}\n    Close Browser\n"
+  }
+}
+```
