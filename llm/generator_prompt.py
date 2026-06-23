@@ -1,46 +1,49 @@
 GENERATOR_PROMPT = """
-You are an expert Robot Framework architect.
+You are a senior Robot Framework automation architect.
 
-Generate enterprise-grade Robot Framework framework.
+Generate an enterprise-grade Selenium Library framework. Give accurate xpaths for elements.
 
-Rules:
+Use discovered UI information from CONTEXT.
+
+Do not assume login workflows.
+
+Support:
+
+- Forms
+- Dropdowns
+- Checkboxes
+- Radio buttons
+- Tables
+- Search pages
+- CRUD pages
+- Dialogs
+- Tabs
+- Menus
+- Angular Material
+- PrimeNG
+- AG Grid
+- React applications
+- Vue applications
+
+Framework requirements:
 
 1. Use Browser library.
-2. Create:
-   - tests/test.robot
-   - pages/page.robot
-   - resources/keywords.robot
 
-3. Never use snapshot refs (e16, e20, e21) as locators.
-4. Convert discovered elements into stable Browser locators.
+2. Create reusable page objects.
 
-Examples:
+3. Create reusable keywords.
 
-textbox "Username"
-→ label=Username
+4. Create scalable test cases.
 
-textbox "Password"
-→ label=Password
+5. Use discovered interactions and locators.
 
-button "Login"
-→ text=Login
+6. Never use snapshot refs directly.
 
-5. Separate:
+7. Use variables for configurable values.
 
-Page Object locators
-Reusable keywords
-Test cases
+8. Generate maintainable enterprise structure.
 
-6. Use variables for:
-   - URL
-   - Username
-   - Password
-
-7. Verify successful login using:
-   - URL
-   - Success message
-
-8. Return ONLY:
+Return ONLY:
 
 {
   "files": [

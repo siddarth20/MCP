@@ -1,48 +1,79 @@
 import re
 
 
-def extract_elements(snapshot_text):
+def classify_element(line):
+
+    element = {
+        "type": "unknown",
+        "label": "",
+        "ref": "",
+        "raw": line
+    }
+
+    ref_match = re.search(
+        r"\[ref=(.*?)\]",
+        line
+    )
+
+    if ref_match:
+
+        element["ref"] = (
+            ref_match.group(1)
+        )
+
+    lowered = line.lower()
+
+    mappings = {
+
+        "textbox": "textbox",
+        "button": "button",
+        "checkbox": "checkbox",
+        "radio": "radio",
+        "combobox": "dropdown",
+        "table": "table",
+        "grid": "grid",
+        "dialog": "dialog",
+        "tab": "tab",
+        "menu": "menu",
+        "link": "link"
+    }
+
+    for key, value in mappings.items():
+
+        if key in lowered:
+
+            element["type"] = value
+
+            break
+
+    label_match = re.search(
+        r'"([^"]+)"',
+        line
+    )
+
+    if label_match:
+
+        element["label"] = (
+            label_match.group(1)
+        )
+
+    return element
+
+
+def extract_elements(snapshot):
 
     elements = []
 
-    textbox_pattern = r'textbox "([^"]+)" \[ref=(.*?)\]'
-    button_pattern = r'button "([^"]+)" \[ref=(.*?)\]'
-    link_pattern = r'link "([^"]+)" \[ref=(.*?)\]'
+    for line in snapshot.splitlines():
 
-    for label, ref in re.findall(
-            textbox_pattern,
-            snapshot_text):
+        if "[ref=" not in line:
+
+            continue
 
         elements.append(
-            {
-                "type": "textbox",
-                "label": label,
-                "ref": ref
-            }
-        )
-
-    for label, ref in re.findall(
-            button_pattern,
-            snapshot_text):
-
-        elements.append(
-            {
-                "type": "button",
-                "label": label,
-                "ref": ref
-            }
-        )
-
-    for label, ref in re.findall(
-            link_pattern,
-            snapshot_text):
-
-        elements.append(
-            {
-                "type": "link",
-                "label": label,
-                "ref": ref
-            }
+            classify_element(
+                line
+            )
         )
 
     return elements
@@ -50,79 +81,77 @@ def extract_elements(snapshot_text):
 
 def build_context(memory):
 
-    context = memory.get_context()
-
-    pre_snapshot = (
-        context.get(
-            "browser_snapshot_1",
-            {}
-        )
+    raw_context = (
+        memory.get_context()
     )
 
-    post_snapshot = (
-        context.get(
-            "browser_snapshot_2",
-            {}
-        )
-    )
+    snapshots = []
 
-    pre_text = (
-        pre_snapshot.get(
-            "raw",
-            ""
-        )
-    )
+    elements = []
 
-    post_text = (
-        post_snapshot.get(
-            "raw",
-            ""
-        )
-    )
+    interactions = []
 
-    login_page = (
-        context.get(
-            "browser_navigate",
-            {}
-        )
-    )
+    for key, value in raw_context.items():
 
-    login_page_text = (
-        login_page.get(
-            "raw",
-            ""
+        if key.startswith(
+                "browser_snapshot_"
+        ):
+
+            snapshot = value.get(
+                "raw",
+                ""
+            )
+
+            snapshots.append(
+                snapshot
+            )
+
+            elements.extend(
+                extract_elements(
+                    snapshot
+                )
+            )
+
+    for item in raw_context.get(
+            "execution_history",
+            []
+    ):
+
+        interactions.append(
+            {
+                "tool":
+                    item.get(
+                        "tool"
+                    ),
+
+                "args":
+                    item.get(
+                        "args",
+                        {}
+                    ),
+
+                "result":
+                    item.get(
+                        "result",
+                        {}
+                    )
+            }
         )
-    )
 
     return {
 
-        "login_page": login_page_text,
+        "screens":
+            snapshots,
 
-        "pre_login_snapshot":
-            pre_text,
+        "elements":
+            elements,
 
-        "post_login_snapshot":
-            post_text,
-
-        "pre_login_elements":
-            extract_elements(
-                pre_text
-            ),
-
-        "post_login_elements":
-            extract_elements(
-                post_text
-            ),
+        "interactions":
+            interactions,
 
         "tool_history":
-            context.get(
+            raw_context.get(
                 "tool_history",
-                []
-            ),
-
-        "execution_history":
-            context.get(
-                "execution_history",
                 []
             )
     }

@@ -3,6 +3,20 @@ import os
 import re
 
 
+OUTPUT_DIR = "generated"
+
+
+def sanitize_path(path):
+
+    path = (
+        path
+        .replace("\\", "/")
+        .replace("..", "")
+    )
+
+    return path
+
+
 def write_framework(framework):
 
     framework = framework.strip()
@@ -32,18 +46,23 @@ def write_framework(framework):
         []
     )
 
+    os.makedirs(
+        OUTPUT_DIR,
+        exist_ok=True
+    )
+
     for file_data in files:
 
-        file_name = file_data[
-            "name"
-        ]
+        file_name = sanitize_path(
+            file_data["name"]
+        )
 
-        content = file_data[
-            "content"
-        ]
+        content = (
+            file_data["content"]
+        )
 
         output_path = os.path.join(
-            "generated",
+            OUTPUT_DIR,
             file_name
         )
 
@@ -55,9 +74,9 @@ def write_framework(framework):
         )
 
         with open(
-            output_path,
-            "w",
-            encoding="utf-8"
+                output_path,
+                "w",
+                encoding="utf-8"
         ) as f:
 
             f.write(
@@ -67,3 +86,7 @@ def write_framework(framework):
         print(
             f"Generated: {output_path}"
         )
+
+    print(
+        "\nFramework generated successfully."
+    )
