@@ -1,157 +1,262 @@
 import re
 
 
-def classify_element(line):
+def parse_snapshot(snapshot):
 
-    element = {
-        "type": "unknown",
-        "label": "",
-        "ref": "",
-        "raw": line
+    page = {
+
+        "title": "",
+
+        "url": "",
+
+        "elements": [],
+
+        "texts": [],
+
+        "console": []
+
     }
-
-    ref_match = re.search(
-        r"\[ref=(.*?)\]",
-        line
-    )
-
-    if ref_match:
-
-        element["ref"] = (
-            ref_match.group(1)
-        )
-
-    lowered = line.lower()
-
-    mappings = {
-
-        "textbox": "textbox",
-        "button": "button",
-        "checkbox": "checkbox",
-        "radio": "radio",
-        "combobox": "dropdown",
-        "table": "table",
-        "grid": "grid",
-        "dialog": "dialog",
-        "tab": "tab",
-        "menu": "menu",
-        "link": "link"
-    }
-
-    for key, value in mappings.items():
-
-        if key in lowered:
-
-            element["type"] = value
-
-            break
-
-    label_match = re.search(
-        r'"([^"]+)"',
-        line
-    )
-
-    if label_match:
-
-        element["label"] = (
-            label_match.group(1)
-        )
-
-    return element
-
-
-def extract_elements(snapshot):
-
-    elements = []
 
     for line in snapshot.splitlines():
 
-        if "[ref=" not in line:
+        stripped = line.strip()
+
+        if not stripped:
 
             continue
 
-        elements.append(
-            classify_element(
-                line
+        if stripped.startswith("- Page URL:"):
+
+            page["url"] = (
+                stripped
+                .replace(
+                    "- Page URL:",
+                    ""
+                )
+                .strip()
             )
+
+            continue
+
+        if stripped.startswith("- Page Title:"):
+
+            page["title"] = (
+                stripped
+                .replace(
+                    "- Page Title:",
+                    ""
+                )
+                .strip()
+            )
+
+            continue
+
+        if stripped.startswith("- Console:"):
+
+            page["console"].append(
+                stripped
+            )
+
+            continue
+
+        ref = re.search(
+
+            r"\[ref=(.*?)\]",
+
+            stripped
+
         )
 
-    return elements
+        if ref:
+
+            element = {
+
+                "ref":
+
+                    ref.group(1),
+
+                "raw":
+
+                    stripped,
+
+                "type":
+
+                    detect_type(
+                        stripped
+                    ),
+
+                "label":
+
+                    detect_label(
+                        stripped
+                    )
+
+            }
+
+            page[
+                "elements"
+            ].append(
+                element
+            )
+
+        else:
+
+            if len(stripped) > 2:
+
+                page[
+                    "texts"
+                ].append(
+                    stripped
+                )
+
+    return page
+
+
+def detect_type(line):
+
+    lowered = line.lower()
+
+    mapping = {
+
+        "textbox": "textbox",
+
+        "button": "button",
+
+        "checkbox": "checkbox",
+
+        "radio": "radio",
+
+        "combobox": "dropdown",
+
+        "table": "table",
+
+        "grid": "grid",
+
+        "tree": "tree",
+
+        "dialog": "dialog",
+
+        "menu": "menu",
+
+        "tab": "tab",
+
+        "link": "link",
+
+        "list": "list",
+
+        "textarea": "textarea"
+
+    }
+
+    for key, value in mapping.items():
+
+        if key in lowered:
+
+            return value
+
+    return "unknown"
+
+
+def detect_label(line):
+
+    match = re.search(
+
+        r'"([^"]+)"',
+
+        line
+
+    )
+
+    if match:
+
+        return match.group(1)
+
+    return ""
 
 
 def build_context(memory):
 
-    raw_context = (
-        memory.get_context()
-    )
+    raw = memory.get_context()
 
-    snapshots = []
+    pages = []
 
-    elements = []
+    interaction_history = []
 
-    interactions = []
+    for key, value in raw.items():
 
-    for key, value in raw_context.items():
-
-        if key.startswith(
-                "browser_snapshot_"
+        if not key.startswith(
+            "browser_snapshot_"
         ):
 
-            snapshot = value.get(
-                "raw",
-                ""
-            )
+            continue
 
-            snapshots.append(
+        snapshot = value.get(
+            "raw",
+            ""
+        )
+
+        pages.append(
+            parse_snapshot(
                 snapshot
             )
+        )
 
-            elements.extend(
-                extract_elements(
-                    snapshot
-                )
-            )
+    for execution in raw.get(
 
-    for item in raw_context.get(
             "execution_history",
+
             []
+
     ):
 
-        interactions.append(
+        interaction_history.append(
+
             {
+
                 "tool":
-                    item.get(
+
+                    execution.get(
                         "tool"
                     ),
 
                 "args":
-                    item.get(
+
+                    execution.get(
                         "args",
                         {}
                     ),
 
                 "result":
-                    item.get(
+
+                    execution.get(
                         "result",
                         {}
                     )
+
             }
+
         )
 
-    return {
+    ui_model = {
 
-        "screens":
-            snapshots,
+        "pages":
 
-        "elements":
-            elements,
+            pages,
 
-        "interactions":
-            interactions,
+        "interaction_history":
+
+            interaction_history,
 
         "tool_history":
-            raw_context.get(
+
+            raw.get(
+
                 "tool_history",
+
                 []
+
             )
+
     }
+
+    return ui_model

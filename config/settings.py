@@ -22,7 +22,39 @@ TARGET_URL = os.getenv(
     "TARGET_URL"
 )
 
+#
+# Running Playwright MCP Server
+#
+# Start manually:
+#
+# npx @playwright/mcp@latest --port 8931
+#
+# Then this client will connect to the running server.
+#
+
 PLAYWRIGHT_MCP_URL = os.getenv(
     "PLAYWRIGHT_MCP_URL",
     "http://localhost:8931/mcp"
+)
+
+#
+# Number of retries if the MCP session is terminated.
+#
+
+MCP_MAX_RETRIES = int(
+    os.getenv(
+        "MCP_MAX_RETRIES",
+        "1"
+    )
+)
+
+#
+# Timeout (seconds) before considering an MCP request failed.
+#
+
+MCP_REQUEST_TIMEOUT = int(
+    os.getenv(
+        "MCP_REQUEST_TIMEOUT",
+        "60"
+    )
 )

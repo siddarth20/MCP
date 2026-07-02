@@ -1,105 +1,177 @@
 import json
+import re
+from dataclasses import asdict
 
-from llm.client import (
-    client
-)
+from llm.client import client
 
 from config.settings import (
     GENERATOR_MODEL
 )
 
-from llm.generator_prompt import GENERATOR_PROMPT
 
+class FrameworkGenerator:
 
-def generate_framework(gherkin, context):
+    def __init__(self):
+        pass
 
+    def generate(
+            self,
+            gherkin,
+            page_model):
 
-  prompt = f"""
+        page = asdict(page_model)
 
+        prompt = f"""
+You are a senior Robot Framework automation architect.
 
-  {GENERATOR_PROMPT}
+Generate a complete enterprise Robot Framework project.
 
-  Gherkin:
+Requirements
 
-  {gherkin}
+- Use Page Object Model.
+- Use reusable keywords.
+- Use reusable resource files.
+- Use variables.
+- Prefer id locator.
+- Then name.
+- Then data-testid.
+- Then aria-label.
+- Then role.
+- Use xpath only as a last resort.
+- Do not duplicate locators.
+- Generate only valid Robot Framework files.
 
-  Context:
+Gherkin Scenario
 
-  {json.dumps(
-  context,
-  indent=2
-  )}
-  """
+{gherkin}
 
-  response = (
-      client.chat.completions.create(
-          model=GENERATOR_MODEL,
-          messages=[
-              {
-                  "role": "user",
-                  "content": prompt
-              }
-          ],
-          temperature=0.1
-      )
-  )
+Current Page Model (JSON)
 
-  response_text = (
-      response
-      .choices[0]
-      .message
-      .content
-      .strip()
-  )
+{json.dumps(page, indent=2)}
 
-  # Remove markdown fences if Groq returns them
+Return ONLY valid JSON.
 
-  if response_text.startswith(
-          "```json"
-  ):
+The JSON schema MUST be exactly:
 
-      response_text = (
-          response_text.replace(
-              "```json",
-              "",
-              1
-          )
-      )
+{{
+    "tests": [
+        {{
+            "name": "",
+            "content": ""
+        }}
+    ],
+    "pages": [
+        {{
+            "name": "",
+            "content": ""
+        }}
+    ],
+    "resources": [
+        {{
+            "name": "",
+            "content": ""
+        }}
+    ],
+    "variables": [
+        {{
+            "name": "",
+            "content": ""
+        }}
+    ],
+    "keywords": [
+        {{
+            "name": "",
+            "content": ""
+        }}
+    ]
+}}
 
-  if response_text.startswith(
-          "```"
-  ):
+Do not wrap the JSON inside markdown.
 
-      response_text = (
-          response_text.replace(
-              "```",
-              "",
-              1
-          )
-      )
+Do not explain anything.
 
-  if response_text.endswith(
-          "```"
-  ):
+Return only JSON.
+"""
 
-      response_text = (
-          response_text[:-3]
-      )
+        response = client.chat.completions.create(
 
-  response_text = (
-      response_text.strip()
-  )
+            model=GENERATOR_MODEL,
 
-  print(
-      "\n==== GROQ RESPONSE ====\n"
-  )
+            temperature=0,
 
-  print(
-      response_text
-  )
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
 
-  print(
-      "\n=======================\n"
-  )
+        )
 
-  return response_text
+        text = response.choices[0].message.content.strip()
+
+        #
+        # Direct JSON
+        #
+
+        try:
+
+            return json.loads(text)
+
+        except Exception:
+
+            pass
+
+        #
+        # Remove markdown if present
+        #
+
+        text = re.sub(
+            r"^```(?:json)?",
+            "",
+            text,
+            flags=re.MULTILINE
+        )
+
+        text = re.sub(
+            r"```$",
+            "",
+            text,
+            flags=re.MULTILINE
+        ).strip()
+
+        #
+        # Try JSON again
+        #
+
+        try:
+
+            return json.loads(text)
+
+        except Exception:
+
+            pass
+
+        #
+        # Extract first JSON object
+        #
+
+        start = text.find("{")
+        end = text.rfind("}")
+
+        if start != -1 and end != -1:
+
+            try:
+
+                return json.loads(
+                    text[start:end + 1]
+                )
+
+            except Exception:
+
+                pass
+
+        raise RuntimeError(
+            "Generator did not return valid JSON.\n\n"
+            + text
+        )

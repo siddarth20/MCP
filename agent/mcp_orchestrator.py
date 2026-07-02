@@ -1,311 +1,245 @@
-import asyncio
 import json
-
-from discovery.context_builder import build_context
-
-from llm.tool_planner import decide_next_action
-
-from agent.system_prompt import SYSTEM_PROMPT
+import time
 
 from config.settings import TARGET_URL
 
+from agent.system_prompt import SYSTEM_PROMPT
 
-class MCPMemory:
+from agent.tool_executor import ToolExecutor
 
-    def __init__(self):
+from llm.tool_planner import ToolPlanner
 
-        self.context = {}
+from models.page_model import PageModel
 
-        self.tool_history = []
+from models.page_model_mapper import PageModelMapper
 
-        self.execution_history = []
 
-        self.snapshot_counter = 0
+class MCPOrchestrator:
 
-    def add(
+    def __init__(
             self,
-            tool_name,
-            result):
+            mcp_client):
 
-        if tool_name == "browser_snapshot":
+        self.mcp_client = mcp_client
 
-            self.snapshot_counter += 1
+        self.tool_executor = ToolExecutor(
 
-            self.context[
-                f"browser_snapshot_{self.snapshot_counter}"
-            ] = result
+            mcp_client
 
-        else:
-
-            self.context[
-                tool_name
-            ] = result
-
-        self.tool_history.append(
-            tool_name
         )
 
-        self.execution_history.append(
-            {
-                "tool": tool_name,
-                "result": result
-            }
+        self.page_model = PageModel()
+
+        self.planner = ToolPlanner(
+
+            self.tool_executor
+
         )
 
-        self.context[
-            "tool_history"
-        ] = list(
-            self.tool_history
+    async def execute(
+            self,
+            gherkin):
+
+        #
+        # Ensure MCP connection
+        #
+
+        await self.mcp_client.connect()
+
+        self.planner.initialize(
+
+            SYSTEM_PROMPT,
+
+            gherkin
+
         )
 
-        self.context[
-            "execution_history"
-        ] = list(
-            self.execution_history
-        )
+        iteration = 1
 
-    def get_context(self):
+        while True:
 
-        return self.context
+            print()
 
-
-async def execute_tool(
-        session,
-        tool_name,
-        tool_args):
-
-    try:
-
-        print(
-            f"\nCALLING TOOL: {tool_name}"
-        )
-
-        print(
-            f"ARGS: {tool_args}"
-        )
-
-        result = await session.call_tool(
-            tool_name,
-            tool_args
-        )
-
-        if not result.content:
-
-            return {
-                "success": False,
-                "error": "No content returned"
-            }
-
-        text = (
-            result.content[0]
-            .text
-        )
-
-        try:
-
-            return json.loads(
-                text
-            )
-
-        except Exception:
-
-            return {
-                "raw": text
-            }
-
-    except Exception as ex:
-
-        return {
-            "success": False,
-            "error": str(ex)
-        }
-
-
-async def run_mcp_agent(
-        gherkin,
-        session):
-
-    memory = MCPMemory()
-
-    messages = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT
-        },
-        {
-            "role": "user",
-            "content": f"""
-TARGET_URL
-
-{TARGET_URL}
-
-GHERKIN
-
-{gherkin}
-"""
-        }
-    ]
-
-    iteration = 0
-
-    max_iterations = 30
-
-    while True:
-
-        iteration += 1
-
-        print(
-            f"\n==== ITERATION {iteration} ===="
-        )
-
-        if iteration > max_iterations:
-
-            raise RuntimeError(
-                "Agent exceeded maximum iterations"
-            )
-
-        message = (
-            decide_next_action(
-                messages
-            )
-        )
-
-        print(
-            "\n==== MODEL RESPONSE ===="
-        )
-
-        print(
-            message
-        )
-
-        if (
-            message.content
-            and
-            "GENERATE_FRAMEWORK"
-            in message.content
-        ):
+            print("=" * 100)
 
             print(
-                "\nAgent requested framework generation"
+                f"ITERATION {iteration}"
             )
 
-            break
+            print("=" * 100)
 
-        if not message.tool_calls:
+            #
+            # Ask planner
+            #
 
-            raise RuntimeError(
-                f"No tool calls returned:\n{message}"
+            planner_start = time.perf_counter()
+
+            message = self.planner.ask()
+
+            planner_time = (
+
+                time.perf_counter()
+
+                - planner_start
+
             )
 
-        for tool_call in message.tool_calls:
+            print()
 
-            tool_name = (
-                tool_call.function.name
-            )
+            print(
 
-            tool_args = json.loads(
-                tool_call.function.arguments
+                f"Planner completed in "
+
+                f"{planner_time:.2f}s"
+
             )
 
             #
-            # Force configured URL
+            # Planner output
             #
-            if tool_name == "browser_navigate":
 
-                tool_args = {
-                    "url": TARGET_URL
-                }
+            if message.content:
 
-            print(
-                f"\nExecuting tool: {tool_name}"
-            )
+                print()
 
-            print(
-                json.dumps(
-                    tool_args,
-                    indent=2
+                print("=" * 80)
+
+                print("MODEL CONTENT")
+
+                print("=" * 80)
+
+                print(
+
+                    message.content
+
                 )
-            )
 
-            tool_result = (
-                await execute_tool(
-                    session,
-                    tool_name,
-                    tool_args
-                )
-            )
+            if message.tool_calls:
+
+                print()
+
+                print("=" * 80)
+
+                print("TOOLS")
+
+                print("=" * 80)
+
+                for tc in message.tool_calls:
+
+                    print()
+
+                    print(
+
+                        tc.function.name
+
+                    )
+
+                    print(
+
+                        tc.function.arguments
+
+                    )
 
             #
-            # Give browser time to stabilize
+            # Finished
             #
-            if tool_name == "browser_navigate":
 
-                await asyncio.sleep(2)
-
-            #
-            # Detect dead session early
-            #
             if (
-                isinstance(
-                    tool_result,
-                    dict
-                )
+
+                message.content
+
                 and
-                "Session terminated"
-                in str(tool_result)
+
+                "GENERATE_FRAMEWORK"
+
+                in message.content
+
             ):
 
-                raise RuntimeError(
-                    "Playwright MCP session terminated"
+                print()
+
+                print("=" * 80)
+
+                print(
+
+                    "Framework generation requested."
+
                 )
 
-            memory.add(
-                tool_name,
-                tool_result
-            )
+                print("=" * 80)
 
-            print(
-                f"\nStored {tool_name}"
-            )
+                return self.page_model
 
-            print(
-                json.dumps(
-                    tool_result,
-                    indent=2
-                )[:2000]
-            )
+            #
+            # Safety
+            #
 
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": tool_call.id,
-                            "type": "function",
-                            "function": {
-                                "name": tool_name,
-                                "arguments": json.dumps(
-                                    tool_args
-                                )
-                            }
-                        }
-                    ]
-                }
-            )
+            if not message.tool_calls:
 
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(
-                        tool_result
-                    )[:10000]
-                }
-            )
+                raise RuntimeError(
 
-    context = build_context(
-        memory
-    )
+                    "Planner returned no tool calls."
 
-    return context
+                )
+
+            #
+            # Execute tools
+            #
+
+            for tool_call in message.tool_calls:
+
+                tool_name = (
+
+                    tool_call.function.name
+
+                )
+
+                tool_args = {}
+
+                if tool_call.function.arguments:
+
+                    tool_args = json.loads(
+
+                        tool_call.function.arguments
+
+                    )
+
+                #
+                # Never trust LLM URL
+                #
+
+                if tool_name == "browser_navigate":
+
+                    tool_args = {
+
+                        "url": TARGET_URL
+
+                    }
+
+                result = await self.tool_executor.execute(
+
+                    tool_name,
+
+                    tool_args
+
+                )
+
+                PageModelMapper.update(
+
+                    self.page_model,
+
+                    tool_name,
+
+                    result
+
+                )
+
+                self.planner.add_tool_result(
+
+                    tool_call,
+
+                    result
+
+                )
+
+            iteration += 1

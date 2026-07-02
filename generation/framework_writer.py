@@ -1,92 +1,176 @@
 import json
 import os
-import re
+from pathlib import Path
 
 
-OUTPUT_DIR = "generated"
+class FrameworkWriter:
 
+    def __init__(self):
 
-def sanitize_path(path):
-
-    path = (
-        path
-        .replace("\\", "/")
-        .replace("..", "")
-    )
-
-    return path
-
-
-def write_framework(framework):
-
-    framework = framework.strip()
-
-    framework = re.sub(
-        r"^```json",
-        "",
-        framework,
-        flags=re.MULTILINE
-    )
-
-    framework = re.sub(
-        r"^```",
-        "",
-        framework,
-        flags=re.MULTILINE
-    )
-
-    framework = framework.strip()
-
-    framework_json = json.loads(
-        framework
-    )
-
-    files = framework_json.get(
-        "files",
-        []
-    )
-
-    os.makedirs(
-        OUTPUT_DIR,
-        exist_ok=True
-    )
-
-    for file_data in files:
-
-        file_name = sanitize_path(
-            file_data["name"]
+        self.project_root = Path(
+            "generated_framework"
         )
 
-        content = (
-            file_data["content"]
-        )
+    def write(
+            self,
+            framework):
 
-        output_path = os.path.join(
-            OUTPUT_DIR,
-            file_name
-        )
+        if isinstance(
+                framework,
+                str):
 
-        os.makedirs(
-            os.path.dirname(
-                output_path
-            ),
-            exist_ok=True
-        )
-
-        with open(
-                output_path,
-                "w",
-                encoding="utf-8"
-        ) as f:
-
-            f.write(
-                content
+            framework = json.loads(
+                framework
             )
 
-        print(
-            f"Generated: {output_path}"
+        self.create_structure()
+
+        self.write_files(
+            framework.get(
+                "tests",
+                []
+            ),
+            "tests"
         )
 
-    print(
-        "\nFramework generated successfully."
-    )
+        self.write_files(
+            framework.get(
+                "pages",
+                []
+            ),
+            "pages"
+        )
+
+        self.write_files(
+            framework.get(
+                "resources",
+                []
+            ),
+            "resources"
+        )
+
+        self.write_files(
+            framework.get(
+                "variables",
+                []
+            ),
+            "variables"
+        )
+
+        self.write_files(
+            framework.get(
+                "keywords",
+                []
+            ),
+            "keywords"
+        )
+
+        print()
+
+        print("=" * 80)
+
+        print(
+            "Framework generated successfully."
+        )
+
+        print(
+            self.project_root.absolute()
+        )
+
+        print("=" * 80)
+
+    def create_structure(self):
+
+        folders = [
+
+            "tests",
+
+            "pages",
+
+            "resources",
+
+            "variables",
+
+            "keywords",
+
+            "results"
+
+        ]
+
+        self.project_root.mkdir(
+
+            exist_ok=True
+
+        )
+
+        for folder in folders:
+
+            (
+
+                self.project_root /
+
+                folder
+
+            ).mkdir(
+
+                parents=True,
+
+                exist_ok=True
+
+            )
+
+    def write_files(
+            self,
+            files,
+            folder):
+
+        for file in files:
+
+            name = file.get(
+                "name"
+            )
+
+            content = file.get(
+                "content",
+                ""
+            )
+
+            if not name:
+
+                continue
+
+            path = (
+
+                self.project_root /
+
+                folder /
+
+                name
+
+            )
+
+            path.parent.mkdir(
+
+                parents=True,
+
+                exist_ok=True
+
+            )
+
+            with open(
+
+                    path,
+
+                    "w",
+
+                    encoding="utf-8"
+
+            ) as fp:
+
+                fp.write(
+                    content
+                )
+
+            print(
+                f"Generated {path}"
+            )

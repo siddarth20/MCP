@@ -1,10 +1,13 @@
 import asyncio
 
 from agent.mcp_client import MCPClient
-from agent.mcp_orchestrator import run_mcp_agent
 
-from llm.generator import generate_framework
-from generation.framework_writer import write_framework
+from agent.mcp_orchestrator import MCPOrchestrator
+
+from llm.generator import FrameworkGenerator
+
+from generation.framework_writer import FrameworkWriter
+
 
 async def main():
 
@@ -24,19 +27,39 @@ async def main():
 
     try:
 
-        context = await run_mcp_agent(
-            gherkin=gherkin,
-            session=mcp_client.session
+        orchestrator = MCPOrchestrator(
+            mcp_client
         )
 
-        framework = generate_framework(
+        page_model = await orchestrator.execute(
+            gherkin
+        )
+
+        generator = FrameworkGenerator()
+
+        framework = generator.generate(
+
             gherkin,
-            context
+
+            page_model
+
         )
 
-        write_framework(
+        writer = FrameworkWriter()
+
+        writer.write(
+
             framework
+
         )
+
+        print()
+
+        print("=" * 80)
+
+        print("Robot Framework project generated successfully.")
+
+        print("=" * 80)
 
     finally:
 
