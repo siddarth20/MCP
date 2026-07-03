@@ -155,5 +155,30 @@ TOOLS = [
                 "properties": {}
             }
         }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_get_optimized_dom",
+            "description": "Returns the entire page as a pruned, token-efficient DOM tree instead of raw HTML. Hidden elements, empty nodes and purely-structural wrapper elements (e.g. layout divs with a single child and no attributes) are stripped out. Each remaining node keeps only its tag, own visible text, ARIA role and a small set of relevant attributes (id, name, type, href, placeholder, value, title, alt, aria-label) plus interactive/disabled/required/checked flags. Use this to understand the full page structure without the noise of raw HTML.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "max_depth": {
+                        "type": "integer",
+                        "description": "Maximum tree depth to walk. Defaults to 20."
+                    },
+                    "max_nodes": {
+                        "type": "integer",
+                        "description": "Maximum number of nodes to return before truncating. Defaults to 400."
+                    },
+                    "include_hidden": {
+                        "type": "boolean",
+                        "description": "Include hidden elements (display:none, visibility:hidden, zero size, aria-hidden). Defaults to false."
+                    }
+                }
+            }
+        }
     }
 ]

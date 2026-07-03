@@ -1,0 +1,5 @@
+LOGIN_PAGE_HEADER = "//h2[text()='Login Page']"
+USERNAME_FIELD = "//input[@id='username']"
+PASSWORD_FIELD = "//input[@id='password']"
+LOGIN_BUTTON = "//button[@type='submit']"
+SECURE_AREA_HEADER = "//h4[contains(text(),'Welcome to the Secure Area')]"
