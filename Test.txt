@@ -1,0 +1,28 @@
+Likely descriptive questions
+The quiz is generated from your code and your rationale, so expect questions like these. Each has a short answer you can build on.
+1. Why doesn't the LLM decide whether money is paid?
+LLMs can misread text or be manipulated. The LLM chooses actions, but issue_credit re-checks the policy itself, so a wrong choice becomes an escalation, never a payment.
+2. Walk through what happens to one dispute.
+Interpret (LLM) → sanitise and flag (code) → tool loop where the LLM picks each tool → shadow policy check → the write tool enforces policy → save to Postgres. Use LP-6263 ($22 credited) as your example.
+3. How did you define "clearly supported"?
+Every check in policy.verify_claim passes, in this order: record exists, data is sane, name matches, no conflicting ledger ID, no risk flags, not already credited, eligible, amount outstanding, reason matches category, claimed amount within max($1, 5%).
+4. Why $100 and a cap of 2? What happens above them?
+They're conservative defaults, configurable in config.py. Above the limit the claim is still escalated with "approve" recommended, so real errors get paid after a human checks.
+5. How do you prevent paying the same dispute twice?
+There are three layers: verify_claim checks already_credited, the tool catches duplicates, and a Postgres partial unique index allows only one live credit per ledger record.
+6. How do you handle prompt injection or social engineering (LP-6258)?
+The customer text is treated as untrusted in the prompts. Pattern-based risk flags such as VERIFICATION_BYPASS_ATTEMPT force escalation whatever the LLM concludes.
+7. What is the shadow policy check and why is it useful?
+Before the LLM's final action, code computes what the rules alone would do and records AGREE, LLM_MORE_CAUTIOUS, LLM_BLOCKED_BY_TOOL or MISMATCH. It turns trust in the LLM into a measurable number.
+8. Why do the read tools return facts instead of decisions?
+So the decision is genuinely the LLM's, which is what the brief means by "decide how to proceed". Safety comes from the write tools, not from telling the LLM the answer.
+9. How are tier requests different (LP-6232, LP-6260)?
+They're decided from tier history, not the ledger. Customers are matched by exact name only, never fuzzily. A customer missing from the history is escalated, not treated as zero, and reviews the app already scheduled count toward the cap.
+10. What happens if the LLM is down or returns bad JSON?
+The call retries with backoff, and 4xx errors like a bad key aren't retried. If the LLM still fails, the dispute is escalated with the error recorded, and the run continues with the next dispute.
+11. Why process one dispute at a time?
+Each dispute is committed before the next starts, so progress is visible and a crash loses nothing. Parallel processing is listed under "with more time".
+12. What's the difference between the llm and rules planners?
+Same tools, same guardrails, same outcomes. rules makes 1 LLM call per dispute instead of about 4, so it's faster and cheaper. llm is the default because the brief asks for an agent.
+13. What would you improve with more time?
+Pick two or three from the rationale: a CA bundle instead of verify=False, a web review UI, enforced JSON output, transactions, parallel processing
